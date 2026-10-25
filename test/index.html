@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Servicios Yucatán — Administración</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="maya"></div>
+
+  <section id="login-view" class="login-shell">
+    <div class="login-art">
+      <div>
+        <div class="kicker">Gobierno del Estado de Yucatán</div>
+        <h1>Servicios y pagos para negocios y ciudadanos</h1>
+        <p>Módulo de administración y reportes. Gestión de usuarios, exportación de datos y operaciones administrativas.</p>
+      </div>
+      <p>Equipo 3 — Edwin, Juan, Caro, Joel</p>
+    </div>
+    <div class="login-panel">
+      <form class="card login-card" id="login-form">
+        <div class="kicker">Acceso al panel</div>
+        <h2>Iniciar sesión</h2>
+        <label for="email">Correo</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <p class="error" id="login-error"></p>
+        <button class="btn" type="submit">Entrar</button>
+        <div class="hint">
+          Demostración:<br>
+          admin@yucatan.gob.mx / admin123<br>
+          operador@yucatan.gob.mx / op123<br>
+          caro@correo.com / 123456
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="app-view" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        Servicios Yucatán
+        <small>Administración y reportes</small>
+      </div>
+      <nav>
+        <button data-view="dashboard" class="active">Resumen</button>
+        <button data-view="usuarios">Usuarios</button>
+        <button data-view="reportes">Reportes</button>
+        <button data-view="exportar">Exportar datos</button>
+        <button data-view="operaciones">Operaciones</button>
+      </nav>
+      <div class="who">
+        <div id="who-name"></div>
+        <div id="who-rol"></div>
+        <button class="btn secondary" id="logout" style="margin-top:12px;width:100%;color:#f3eee4;border-color:#eadfca;">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="view-dashboard">
+        <div class="topbar">
+          <div>
+            <div class="kicker">Panel</div>
+            <h1>Resumen administrativo</h1>
+            <p class="note">Cifras tomadas del archivo local de datos. Los pagos son simulados.</p>
+          </div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="card" style="padding:16px;margin-top:16px;">
+          <h3>Usuarios por municipio</h3>
+          <div class="bars" id="muni-bars"></div>
+        </div>
+      </div>
+
+      <div id="view-usuarios" class="hidden">
+        <div class="topbar">
+          <div>
+            <div class="kicker">Directorio</div>
+            <h1>Gestión de usuarios</h1>
+          </div>
+          <button class="btn" id="nuevo-usuario">Nuevo usuario</button>
+        </div>
+        <div class="toolbar">
+          <input id="buscar" placeholder="Buscar por nombre, correo o CURP">
+          <select id="filtro-rol">
+            <option value="">Todos los roles</option>
+            <option>administrador</option>
+            <option>operador</option>
+            <option>ciudadano</option>
+            <option>negocio</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Municipio</th>
+              <th>Estatus</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabla-usuarios"></tbody>
+        </table>
+      </div>
+
+      <div id="view-reportes" class="hidden">
+        <div class="topbar">
+          <div>
+            <div class="kicker">Informes</div>
+            <h1>Reportes de pagos y padrones</h1>
+          </div>
+        </div>
+        <div class="toolbar">
+          <select id="rep-estatus">
+            <option value="">Todos los pagos</option>
+            <option>pagado</option>
+            <option>pendiente</option>
+            <option>vencido</option>
+            <option>cancelado</option>
+          </select>
+          <select id="rep-muni"></select>
+        </div>
+        <div class="stats" id="rep-stats"></div>
+        <table style="margin-top:16px;">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Usuario</th>
+              <th>Servicio</th>
+              <th>Municipio</th>
+              <th>Monto</th>
+              <th>Estatus</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-pagos"></tbody>
+        </table>
+      </div>
+
+      <div id="view-exportar" class="hidden">
+        <div class="topbar">
+          <div>
+            <div class="kicker">Salida de datos</div>
+            <h1>Exportación</h1>
+            <p class="note">Descarga padrones y pagos en CSV o JSON para trabajo fuera de la plataforma.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="csv-usuarios">Usuarios CSV</button>
+          <button class="btn gold" id="json-pagos">Pagos JSON</button>
+          <button class="btn danger" id="json-completo">Respaldo completo</button>
+        </div>
+        <pre id="preview-export"></pre>
+      </div>
+
+      <div id="view-operaciones" class="hidden">
+        <div class="topbar">
+          <div>
+            <div class="kicker">Mantenimiento</div>
+            <h1>Operaciones administrativas</h1>
+          </div>
+        </div>
+        <div class="card" style="padding:20px;max-width:640px;">
+          <p class="note">Acciones sobre el padrón almacenado en este navegador. No hay bitácora ni segundo factor.</p>
+          <div class="toolbar">
+            <button class="btn" id="activar-todos">Activar suspendidos</button>
+            <button class="btn secondary" id="purgar">Purgar inactivos</button>
+            <button class="btn danger" id="reset-db">Restaurar base de datos</button>
+          </div>
+          <label for="rol-usuario">Cambiar rol de un usuario</label>
+          <div class="toolbar">
+            <select id="rol-usuario"></select>
+            <select id="rol-nuevo">
+              <option>administrador</option>
+              <option>operador</option>
+              <option>ciudadano</option>
+              <option>negocio</option>
+            </select>
+            <button class="btn gold" id="aplicar-rol">Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <div id="modal-back" class="modal-back hidden">
+    <form class="card modal" id="user-form">
+      <h2 id="modal-title">Usuario</h2>
+      <input type="hidden" id="u-id">
+      <div class="grid-2">
+        <div>
+          <label>Nombre</label>
+          <input id="u-nombre" required>
+        </div>
+        <div>
+          <label>Correo</label>
+          <input id="u-email" type="email" required>
+        </div>
+        <div>
+          <label>Contraseña</label>
+          <input id="u-password" required>
+        </div>
+        <div>
+          <label>Rol</label>
+          <select id="u-rol">
+            <option>ciudadano</option>
+            <option>negocio</option>
+            <option>operador</option>
+            <option>administrador</option>
+          </select>
+        </div>
+        <div>
+          <label>Teléfono</label>
+          <input id="u-telefono">
+        </div>
+        <div>
+          <label>CURP</label>
+          <input id="u-curp">
+        </div>
+        <div>
+          <label>RFC</label>
+          <input id="u-rfc">
+        </div>
+        <div>
+          <label>Municipio</label>
+          <input id="u-municipio">
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select id="u-tipo">
+            <option>ciudadano</option>
+            <option>negocio</option>
+            <option>servidor_publico</option>
+          </select>
+        </div>
+        <div>
+          <label>Estatus</label>
+          <select id="u-estatus">
+            <option>activo</option>
+            <option>inactivo</option>
+            <option>suspendido</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:16px;">
+        <button class="btn" type="submit">Guardar</button>
+        <button class="btn secondary" type="button" id="cerrar-modal">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- jQuery 1.12.4: dependencia desactualizada usada por el panel -->
+  <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
