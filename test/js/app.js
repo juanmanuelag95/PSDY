@@ -4,6 +4,50 @@
   var db = { usuarios: [], pagos: [] };
   var session = null;
 
+  var PERMISOS = {
+    administrador: {
+      panel: true,
+      usuarios: true,
+      crearUsuario: true,
+      editarUsuario: true,
+      borrarUsuario: true,
+      cambiarRol: true,
+      operaciones: true,
+      exportar: true,
+      respaldo: true
+    },
+    operador: {
+      panel: true,
+      usuarios: true,
+      crearUsuario: false,
+      editarUsuario: false,
+      borrarUsuario: false,
+      cambiarRol: false,
+      operaciones: false,
+      exportar: true,
+      respaldo: false
+    },
+    ciudadano: { panel: false },
+    negocio: { panel: false }
+  };
+
+  function rolActual() {
+    if (!session) return null;
+    var u = usuarioDe(session.id);
+    return u ? u.rol : null;
+  }
+
+  function puede(accion) {
+    var rol = rolActual();
+    return !!(PERMISOS[rol] && PERMISOS[rol][accion]);
+  }
+
+  function exigir(accion, mensaje) {
+    if (puede(accion)) return true;
+    alert(mensaje || "Operación rechazada. No tiene privilegios suficientes.");
+    return false;
+  }
+
   function loadDb() {
     var saved = localStorage.getItem(STORAGE_DB);
     if (saved) {
@@ -23,7 +67,12 @@
     var raw = localStorage.getItem(STORAGE_SESSION);
     if (raw) {
       session = JSON.parse(raw);
-      showApp();
+      if (puede("panel")) {
+        showApp();
+      } else {
+        localStorage.removeItem(STORAGE_SESSION);
+        session = null;
+      }
     }
     fillMunicipios();
   }
@@ -44,8 +93,17 @@
     $("#login-view").addClass("hidden");
     $("#app-view").removeClass("hidden");
     $("#who-name").text(session.nombre);
-    $("#who-rol").text(session.rol);
+    $("#who-rol").text(rolActual());
+    aplicarPermisosUI();
     renderAll();
+  }
+
+  function aplicarPermisosUI() {
+    $("#nuevo-usuario").toggleClass("hidden", !puede("crearUsuario"));
+    $("#nav-operaciones").toggleClass("hidden", !puede("operaciones"));
+    $("#json-completo").toggleClass("hidden", !puede("respaldo"));
+    $("#acciones-admin").toggleClass("hidden", !puede("operaciones"));
+    $("#aviso-operador").toggleClass("hidden", puede("operaciones"));
   }
 
   function showLogin() {
@@ -64,8 +122,12 @@
       $("#login-error").text("Correo o contraseña incorrectos.");
       return;
     }
-    // No se valida el rol: cualquier cuenta entra al panel administrativo.
-    session = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol };
+    session = { id: user.id, nombre: user.nombre, email: user.email };
+    if (!puede("panel")) {
+      session = null;
+      $("#login-error").text("Acceso denegado. Su rol no tiene permiso para el módulo de administración.");
+      return;
+    }
     localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
     $("#login-error").text("");
     showApp();
@@ -79,6 +141,12 @@
 
   $("nav button").on("click", function () {
     var view = $(this).data("view");
+    if (view === "operaciones" && !exigir("operaciones", "Operación rechazada. Solo el administrador puede abrir operaciones administrativas.")) {
+      return;
+    }
+    if (view === "exportar" && !exigir("exportar")) {
+      return;
+    }
     $("nav button").removeClass("active");
     $(this).addClass("active");
     $("#view-dashboard, #view-usuarios, #view-reportes, #view-exportar, #view-operaciones").addClass("hidden");
@@ -137,30 +205,36 @@
     var q = ($("#buscar").val() || "").toLowerCase();
     var rol = $("#filtro-rol").val();
     var rows = db.usuarios.filter(function (u) {
-      var blob = (u.nombre + u.email + u.curp).toLowerCase();
+      var blob = (u.nombre + " " + u.email).toLowerCase();
       return blob.indexOf(q) !== -1 && (!rol || u.rol === rol);
     });
     document.getElementById("tabla-usuarios").innerHTML = rows.map(function (u) {
+      var acciones = "";
+      if (puede("editarUsuario")) {
+        acciones += '<button class="btn secondary" data-edit="' + u.id + '">Editar</button> ';
+      }
+      if (puede("borrarUsuario")) {
+        acciones += '<button class="btn danger" data-del="' + u.id + '">Borrar</button>';
+      }
       return "<tr>" +
-        "<td>" + u.nombre + "<br><small>" + u.curp + " · " + u.rfc + "</small></td>" +
-        "<td>" + u.email + "<br><small>" + u.telefono + "</small></td>" +
+        "<td>" + u.nombre + "</td>" +
+        "<td>" + u.email + "</td>" +
         "<td>" + u.rol + "</td>" +
         "<td>" + u.municipio + "</td>" +
         "<td>" + badge(u.estatus) + "</td>" +
-        "<td>" +
-          '<button class="btn secondary" data-edit="' + u.id + '">Editar</button> ' +
-          '<button class="btn danger" data-del="' + u.id + '">Borrar</button>' +
-        "</td></tr>";
+        "<td>" + acciones + "</td></tr>";
     }).join("");
   }
 
   $("#buscar, #filtro-rol").on("input change", renderUsuarios);
 
   $(document).on("click", "[data-edit]", function () {
+    if (!exigir("editarUsuario", "Operación rechazada. No puede editar usuarios.")) return;
     openUser(Number($(this).data("edit")));
   });
 
   $(document).on("click", "[data-del]", function () {
+    if (!exigir("borrarUsuario", "Operación rechazada. No puede eliminar registros.")) return;
     var id = Number($(this).data("del"));
     db.usuarios = db.usuarios.filter(function (u) { return u.id !== id; });
     persist();
@@ -168,6 +242,7 @@
   });
 
   $("#nuevo-usuario").on("click", function () {
+    if (!exigir("crearUsuario", "Operación rechazada. No puede crear usuarios.")) return;
     openUser(null);
   });
 
@@ -179,7 +254,7 @@
     $("#u-id").val(u.id);
     $("#u-nombre").val(u.nombre);
     $("#u-email").val(u.email);
-    $("#u-password").val(u.password);
+    $("#u-password").val("");
     $("#u-rol").val(u.rol);
     $("#u-telefono").val(u.telefono);
     $("#u-curp").val(u.curp);
@@ -198,19 +273,31 @@
   $("#user-form").on("submit", function (e) {
     e.preventDefault();
     var id = $("#u-id").val();
+    if (id && !exigir("editarUsuario")) return;
+    if (!id && !exigir("crearUsuario")) return;
+    var actual = id ? usuarioDe(Number(id)) : null;
+    var nuevoRol = $("#u-rol").val();
+    if (actual && actual.rol !== nuevoRol && !exigir("cambiarRol", "Operación rechazada. No puede modificar roles.")) {
+      return;
+    }
+    var password = $("#u-password").val();
+    if (!id && !password) {
+      alert("La contraseña es obligatoria al crear un usuario.");
+      return;
+    }
     var record = {
       id: id ? Number(id) : Date.now(),
       nombre: $("#u-nombre").val(),
       email: $("#u-email").val(),
-      password: $("#u-password").val(),
-      rol: $("#u-rol").val(),
+      password: password || (actual ? actual.password : ""),
+      rol: nuevoRol,
       telefono: $("#u-telefono").val(),
       curp: $("#u-curp").val(),
       rfc: $("#u-rfc").val(),
       municipio: $("#u-municipio").val(),
       tipo: $("#u-tipo").val(),
       estatus: $("#u-estatus").val(),
-      registrado: new Date().toISOString().slice(0, 10)
+      registrado: actual ? actual.registrado : new Date().toISOString().slice(0, 10)
     };
     if (id) {
       db.usuarios = db.usuarios.map(function (u) { return u.id === record.id ? record : u; });
@@ -259,28 +346,62 @@
     a.click();
   }
 
+  function usuarioExportable(u) {
+    var fila = {
+      id: u.id,
+      nombre: u.nombre,
+      rol: u.rol,
+      municipio: u.municipio,
+      tipo: u.tipo,
+      estatus: u.estatus
+    };
+    if (puede("operaciones")) {
+      fila.email = u.email;
+    }
+    return fila;
+  }
+
+  function pagoExportable(p) {
+    return {
+      id: p.id,
+      servicio: p.servicio,
+      monto: p.monto,
+      fecha: p.fecha,
+      estatus: p.estatus,
+      municipio: p.municipio
+    };
+  }
+
   function csvUsuarios() {
-    var header = "id,nombre,email,password,rol,telefono,curp,rfc,municipio,tipo,estatus";
-    var lines = db.usuarios.map(function (u) {
-      return [u.id, u.nombre, u.email, u.password, u.rol, u.telefono, u.curp, u.rfc, u.municipio, u.tipo, u.estatus].join(",");
+    var filas = db.usuarios.map(usuarioExportable);
+    var header = Object.keys(filas[0] || { id: 1 });
+    var lines = filas.map(function (u) {
+      return header.map(function (k) { return u[k]; }).join(",");
     });
-    return header + "\n" + lines.join("\n");
+    return header.join(",") + "\n" + lines.join("\n");
   }
 
   $("#csv-usuarios").on("click", function () {
+    if (!exigir("exportar", "Operación rechazada. No puede exportar datos.")) return;
     var csv = csvUsuarios();
     $("#preview-export").text(csv);
     download("usuarios-yucatan.csv", csv, "text/csv");
   });
 
   $("#json-pagos").on("click", function () {
-    var json = JSON.stringify(db.pagos, null, 2);
+    if (!exigir("exportar", "Operación rechazada. No puede exportar datos.")) return;
+    var json = JSON.stringify(db.pagos.map(pagoExportable), null, 2);
     $("#preview-export").text(json);
     download("pagos-yucatan.json", json, "application/json");
   });
 
   $("#json-completo").on("click", function () {
-    var json = JSON.stringify(db, null, 2);
+    if (!exigir("respaldo", "Operación rechazada. Solo el administrador puede generar un respaldo.")) return;
+    var respaldo = {
+      usuarios: db.usuarios.map(usuarioExportable),
+      pagos: db.pagos.map(pagoExportable)
+    };
+    var json = JSON.stringify(respaldo, null, 2);
     $("#preview-export").text(json);
     download("respaldo-sdy.json", json, "application/json");
   });
@@ -292,6 +413,7 @@
   }
 
   $("#activar-todos").on("click", function () {
+    if (!exigir("operaciones", "Operación rechazada. Solo el administrador puede activar registros suspendidos.")) return;
     db.usuarios.forEach(function (u) {
       if (u.estatus === "suspendido") u.estatus = "activo";
     });
@@ -300,12 +422,14 @@
   });
 
   $("#purgar").on("click", function () {
+    if (!exigir("operaciones", "Operación rechazada. Solo el administrador puede purgar registros.")) return;
     db.usuarios = db.usuarios.filter(function (u) { return u.estatus !== "inactivo"; });
     persist();
     renderAll();
   });
 
   $("#reset-db").on("click", function () {
+    if (!exigir("operaciones", "Operación rechazada. Solo el administrador puede restaurar la base de datos.")) return;
     db = JSON.parse(JSON.stringify(INITIAL_DB));
     persist();
     fillMunicipios();
@@ -313,6 +437,7 @@
   });
 
   $("#aplicar-rol").on("click", function () {
+    if (!exigir("cambiarRol", "Operación rechazada. No puede modificar roles.")) return;
     var id = Number($("#rol-usuario").val());
     var rol = $("#rol-nuevo").val();
     db.usuarios.forEach(function (u) {
@@ -323,6 +448,7 @@
   });
 
   function renderAll() {
+    aplicarPermisosUI();
     renderStats();
     renderBars();
     renderUsuarios();

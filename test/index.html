@@ -34,7 +34,7 @@
           Demostración:<br>
           admin@yucatan.gob.mx / admin123<br>
           operador@yucatan.gob.mx / op123<br>
-          caro@correo.com / 123456
+          caro@correo.com / 123456 (sin acceso al panel)
         </div>
       </form>
     </div>
@@ -50,8 +50,8 @@
         <button data-view="dashboard" class="active">Resumen</button>
         <button data-view="usuarios">Usuarios</button>
         <button data-view="reportes">Reportes</button>
-        <button data-view="exportar">Exportar datos</button>
-        <button data-view="operaciones">Operaciones</button>
+        <button data-view="exportar" id="nav-exportar">Exportar datos</button>
+        <button data-view="operaciones" id="nav-operaciones">Operaciones</button>
       </nav>
       <div class="who">
         <div id="who-name"></div>
@@ -85,7 +85,7 @@
           <button class="btn" id="nuevo-usuario">Nuevo usuario</button>
         </div>
         <div class="toolbar">
-          <input id="buscar" placeholder="Buscar por nombre, correo o CURP">
+          <input id="buscar" placeholder="Buscar por nombre o correo">
           <select id="filtro-rol">
             <option value="">Todos los roles</option>
             <option>administrador</option>
@@ -147,7 +147,7 @@
           <div>
             <div class="kicker">Salida de datos</div>
             <h1>Exportación</h1>
-            <p class="note">Descarga padrones y pagos en CSV o JSON para trabajo fuera de la plataforma.</p>
+            <p class="note">Las exportaciones no incluyen contraseñas, CURP, RFC ni teléfonos. El respaldo completo solo está disponible para el administrador.</p>
           </div>
         </div>
         <div class="toolbar">
@@ -166,22 +166,25 @@
           </div>
         </div>
         <div class="card" style="padding:20px;max-width:640px;">
-          <p class="note">Acciones sobre el padrón almacenado en este navegador. No hay bitácora ni segundo factor.</p>
-          <div class="toolbar">
-            <button class="btn" id="activar-todos">Activar suspendidos</button>
-            <button class="btn secondary" id="purgar">Purgar inactivos</button>
-            <button class="btn danger" id="reset-db">Restaurar base de datos</button>
-          </div>
-          <label for="rol-usuario">Cambiar rol de un usuario</label>
-          <div class="toolbar">
-            <select id="rol-usuario"></select>
-            <select id="rol-nuevo">
-              <option>administrador</option>
-              <option>operador</option>
-              <option>ciudadano</option>
-              <option>negocio</option>
-            </select>
-            <button class="btn gold" id="aplicar-rol">Aplicar</button>
+          <p class="note hidden" id="aviso-operador">Estas operaciones están restringidas al rol administrador. Un operador o ciudadano no puede modificar roles ni eliminar registros.</p>
+          <div id="acciones-admin">
+            <p class="note">Acciones sobre el padrón. Solo el administrador puede ejecutarlas.</p>
+            <div class="toolbar">
+              <button class="btn" id="activar-todos">Activar suspendidos</button>
+              <button class="btn secondary" id="purgar">Purgar inactivos</button>
+              <button class="btn danger" id="reset-db">Restaurar base de datos</button>
+            </div>
+            <label for="rol-usuario">Cambiar rol de un usuario</label>
+            <div class="toolbar">
+              <select id="rol-usuario"></select>
+              <select id="rol-nuevo">
+                <option>administrador</option>
+                <option>operador</option>
+                <option>ciudadano</option>
+                <option>negocio</option>
+              </select>
+              <button class="btn gold" id="aplicar-rol">Aplicar</button>
+            </div>
           </div>
         </div>
       </div>
@@ -203,7 +206,7 @@
         </div>
         <div>
           <label>Contraseña</label>
-          <input id="u-password" required>
+          <input id="u-password" placeholder="Vacío = no cambiar" autocomplete="new-password">
         </div>
         <div>
           <label>Rol</label>
